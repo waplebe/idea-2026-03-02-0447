@@ -1,0 +1,314 @@
+---FILE: README.md
+# Simple Task Manager API
+
+**Description:**
+
+This project provides a simple RESTful API for managing tasks. It allows users to create, read, update, and delete tasks. The frontend provides a basic interface for interacting with the API.
+
+**Why it's useful:**
+
+A task manager is a fundamental tool for productivity. This API provides a foundation for building more complex task management applications or integrating task management functionality into existing systems.
+
+**Installation:**
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/simple-task-manager.git
+    cd simple-task-manager
+    ```
+
+2.  **Set up the backend:**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # Linux/macOS
+    # venv\Scripts\activate  # Windows
+    pip install -r requirements.txt
+    ```
+
+3.  **Set up the frontend:**
+    ```bash
+    npm install
+    npm start
+    ```
+
+4.  **Set up environment variables:**
+    Create a `.env` file in the root directory and populate it with the following:
+    ```
+    DATABASE_URL=sqlite:///tasks.db
+    ```
+
+**API Endpoints:**
+
+*   `GET /tasks`: Retrieves all tasks.
+*   `GET /tasks/{id}`: Retrieves a specific task by ID.
+*   `POST /tasks`: Creates a new task.  Request body should be a JSON object with `title` and `description` fields.
+*   `PUT /tasks/{id}`: Updates an existing task. Request body should be a JSON object with `title` and/or `description` fields.
+*   `DELETE /tasks/{id}`: Deletes a task.
+
+**Examples:**
+
+*   **Create a task:**
+    `POST /tasks`
+    Request Body:
+    ```json
+    {
+      "title": "Grocery Shopping",
+      "description": "Buy milk, eggs, and bread"
+    }
+    ```
+    Response:
+    ```json
+    {
+      "id": 1,
+      "title": "Grocery Shopping",
+      "description": "Buy milk, eggs, and bread",
+      "completed": false
+    }
+    ```
+
+*   **Get all tasks:**
+    `GET /tasks`
+    Response:
+    ```json
+    [
+      {
+        "id": 1,
+        "title": "Grocery Shopping",
+        "description": "Buy milk, eggs, and bread",
+        "completed": false
+      },
+      {
+        "id": 2,
+        "title": "Pay Bills",
+        "description": "Pay electricity and internet bills",
+        "completed": true
+      }
+    ]
+    ```
+
+**License:**
+
+MIT License
+
+---FILE: .gitignore
+.env
+venv/
+__pycache__/
+*.pyc
+*.log
+*.sqlite3
+---FILE: .env.example
+DATABASE_URL=sqlite:///tasks.db
+---FILE: app.py
+from flask import Flask, jsonify, request
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///tasks.db')
+db = SQLAlchemy(app)
+
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    completed = db.Column(db.Boolean, default=False)
+
+    def __repr__(self):
+        return f'<Task {self.title}>'
+
+@app.route('/tasks', methods=['GET'])
+def get_tasks():
+    tasks = Task.query.all()
+    task_list = [task.to_dict() for task in tasks]
+    return jsonify(task_list)
+
+@app.route('/tasks/<int:id>', methods=['GET'])
+def get_task(id):
+    task = Task.query.get_or_404(id)
+    return jsonify(task.to_dict())
+
+@app.route('/tasks', methods=['POST'])
+def create_task():
+    data = request.get_json()
+    title = data.get('title')
+    description = data.get('description')
+
+    if not title:
+        return jsonify({'error': 'Title is required'}), 400
+
+    new_task = Task(title=title, description=description)
+    db.session.add(new_task)
+    db.session.commit()
+
+    return jsonify(new_task.to_dict()), 201
+
+@app.route('/tasks/<int:id>', methods=['PUT'])
+def update_task(id):
+    task = Task.query.get_or_404(id)
+    data = request.get_json()
+
+    task.title = data.get('title')
+    task.description = data.get('description')
+    task.completed = data.get('completed', task.completed)
+
+    db.session.commit()
+
+    return jsonify(task.to_dict())
+
+@app.route('/tasks/<int:id>', methods=['DELETE'])
+def delete_task(id):
+    task = Task.query.get_or_404(id)
+    db.session.delete(task)
+    db.session.commit()
+
+    return '', 204
+
+if __name__ == '__main__':
+    from dotenv import load_dotenv
+    load_dotenv()
+    db.init_app(app)
+    app.run(debug=True)
+---FILE: requirements.txt
+Flask
+Flask-SQLAlchemy
+requests
+python-dotenv
+---FILE: frontend/index.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Task Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Simple Task Manager</h1>
+
+    <button id="addTaskBtn">Add Task</button>
+
+    <div id="taskList">
+        <!-- Tasks will be displayed here -->
+    </div>
+
+    <script src="scripts.js"></script>
+</body>
+</html>
+---FILE: frontend/scripts.js
+document.addEventListener('DOMContentLoaded', function() {
+    const addTaskBtn = document.getElementById('addTaskBtn');
+    const taskList = document.getElementById('taskList');
+
+    // Fetch tasks from the API
+    fetch('/tasks')
+        .then(response => response.json())
+        .then(tasks => {
+            taskList.innerHTML = '';
+            tasks.forEach(task => {
+                const taskItem = document.createElement('div');
+                taskItem.innerHTML = `
+                    <span>${task.title}</span>
+                    <span class="${task.completed ? 'completed' : ''}">${task.description}</span>
+                    <button class="completeBtn">${task.completed ? 'Undo' : 'Complete'}</button>
+                `;
+                taskList.appendChild(taskItem);
+            });
+        })
+        .catch(error => console.error('Error fetching tasks:', error));
+
+    // Add task functionality
+    addTaskBtn.addEventListener('click', function() {
+        // Implement add task functionality here (e.g., using fetch API)
+        alert('Add task functionality not implemented yet.');
+    });
+});
+---FILE: frontend/styles.css
+body {
+    font-family: sans-serif;
+    margin: 20px;
+}
+
+h1 {
+    text-align: center;
+}
+
+#taskList {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+}
+
+.completed {
+    text-decoration: line-through;
+    color: gray;
+}
+
+.completeBtn {
+    margin-left: 10px;
+}
+---FILE: frontend/styles.css
+body {
+    font-family: sans-serif;
+    margin: 20px;
+}
+
+h1 {
+    text-align: center;
+}
+
+#taskList {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+}
+
+.completed {
+    text-decoration: line-through;
+    color: gray;
+}
+
+.completeBtn {
+    margin-left: 10px;
+}
+---FILE: frontend/scripts.js
+document.addEventListener('DOMContentLoaded', function() {
+    const addTaskBtn = document.getElementById('addTaskBtn');
+    const taskList = document.getElementById('taskList');
+
+    // Fetch tasks from the API
+    fetch('/tasks')
+        .then(response => response.json())
+        .then(tasks => {
+            taskList.innerHTML = '';
+            tasks.forEach(task => {
+                const taskItem = document.createElement('div');
+                taskItem.innerHTML = `
+                    <span>${task.title}</span>
+                    <span class="${task.completed ? 'completed' : ''}">${task.description}</span>
+                    <button class="completeBtn">${task.completed ? 'Undo' : 'Complete'}</button>
+                `;
+                taskList.appendChild(taskItem);
+            });
+        })
+        .catch(error => console.error('Error fetching tasks:', error));
+
+    // Add task functionality
+    addTaskBtn.addEventListener('click', function() {
+        // Implement add task functionality here (e.g., using fetch API)
+        alert('Add task functionality not implemented yet.');
+    });
+});
+---FILE: package.json
+{
+  "name": "simple-task-manager",
+  "version": "1.0.0",
+  "description": "Simple Task Manager API and Frontend",
+  "main": "app.py",
+  "scripts": {
+    "start": "python app.py",
+    "frontend": "npm start"
+  },
+  "dependencies": {
+    "flask": "^2.3.3",
+    "flask-sqlalchemy": "^3.0.0",
+    "python-dotenv": "^1.0.0"
+  },
+  "devDependencies": 
